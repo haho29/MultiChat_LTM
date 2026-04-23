@@ -67,6 +67,36 @@ public class MessageDAO {
         return list;
     }
 
+    public List<Message> getMediaMessages() {
+        List<Message> list = new ArrayList<>();
+        String sql = "SELECT m.*, u.[username] as [sender_name] FROM [messages] m " +
+                     "JOIN [users] u ON m.[sender_id] = u.[id] " +
+                     "WHERE [type] != 'TEXT' " +
+                     "ORDER BY [sent_at] DESC";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                list.add(mapMessage(rs));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    public boolean deleteMessage(int id) {
+        String sql = "DELETE FROM [messages] WHERE [id] = ?";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, id);
+            return ps.executeUpdate() > 0;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
     private Message mapMessage(ResultSet rs) throws SQLException {
         Message m = new Message();
         m.setId(rs.getInt("id"));

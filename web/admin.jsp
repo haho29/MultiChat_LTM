@@ -1,6 +1,7 @@
 <%@page import="com.network.model.Report"%>
 <%@page import="java.util.List"%>
 <%@page import="com.network.model.User"%>
+<%@page import="com.network.model.Message"%>
 <%@page contentType="text/html" pageEncoding="UTF-8"%>
 <!DOCTYPE html>
 <html lang="vi">
@@ -88,10 +89,63 @@
     </div>
 </nav>
 
-<div class="container">
-    <div class="row">
+<div class="container py-4">
+    <!-- Statistics Overview -->
+    <% 
+        java.util.Map<String, Object> stats = (java.util.Map<String, Object>) request.getAttribute("stats");
+    %>
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card p-3 text-center bg-white border-0 shadow-sm rounded-4">
+                <div class="display-6 fw-bold text-primary"><%= stats.get("totalUsers") %></div>
+                <div class="small text-muted text-uppercase">Người dùng</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card p-3 text-center bg-white border-0 shadow-sm rounded-4">
+                <div class="display-6 fw-bold text-success"><%= stats.get("onlineUsers") %></div>
+                <div class="small text-muted text-uppercase">Đang Online</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card p-3 text-center bg-white border-0 shadow-sm rounded-4">
+                <div class="display-6 fw-bold text-info"><%= stats.get("messagesToday") %></div>
+                <div class="small text-muted text-uppercase">Tin nhắn hôm nay</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card p-3 text-center bg-white border-0 shadow-sm rounded-4">
+                <div class="display-6 fw-bold text-danger"><%= stats.get("pendingReports") %></div>
+                <div class="small text-muted text-uppercase">Báo cáo chờ</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- System Actions & Broadcast -->
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0 fw-bold">Thông báo hệ thống</h5>
+                </div>
+                <div class="card-body">
+                    <form action="admin" method="GET" class="mb-4">
+                        <input type="hidden" name="action" value="broadcast">
+                        <textarea name="message" class="form-control mb-2 rounded-3" rows="3" placeholder="Gửi thông báo tới toàn bộ người dùng..."></textarea>
+                        <button type="submit" class="btn btn-primary w-100 rounded-pill">Gửi Broadcast</button>
+                    </form>
+                    <hr>
+                    <h6 class="fw-bold small text-muted text-uppercase mb-3">Cấu hình nhanh</h6>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-secondary btn-sm rounded-pill" onclick="showConfig()">Cấu hình hệ thống</button>
+                        <button class="btn btn-outline-info btn-sm rounded-pill">Sao lưu dữ liệu</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- User Management -->
-        <div class="col-12">
+        <div class="col-lg-8">
             <div class="card">
                 <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
                     <h5 class="mb-0 fw-bold">Quản lý người dùng</h5>
@@ -201,18 +255,26 @@
                                     <td class="small text-muted"><%= r.getCreatedAt().toString().substring(0, 16) %></td>
                                     <td>@<%= r.getReporterName() %></td>
                                     <td class="fw-bold text-danger">@<%= r.getReportedName() %></td>
-                                    <td><small><%= r.getReason() %></small></td>
+                                    <td>
+                                        <div class="text-truncate" style="max-width: 150px;"><small><%= r.getReason() %></small></div>
+                                    </td>
                                     <td>
                                         <span class="status-badge <%= "PENDING".equals(r.getStatus()) ? "status-pending" : "status-active" %>">
                                             <%= r.getStatus() %>
                                         </span>
                                     </td>
                                     <td>
-                                        <% if ("PENDING".equals(r.getStatus())) { %>
-                                            <a href="admin?action=resolve_report&id=<%= r.getId() %>" class="btn btn-primary btn-sm rounded-pill">
-                                                Đã xử lý
-                                            </a>
-                                        <% } %>
+                                        <div class="d-flex gap-1">
+                                            <button class="btn btn-info btn-sm rounded-pill text-white" 
+                                                    onclick="showReportDetail('<%= r.getId() %>', '<%= r.getReporterName() %>', '<%= r.getReportedName() %>', '<%= r.getReportedId() %>', '<%= r.getReason().replace("'", "\\'") %>', '<%= r.getMessageContent() != null ? r.getMessageContent().replace("'", "\\'") : "" %>', '<%= r.getMessageId() %>')">
+                                                Xem
+                                            </button>
+                                            <% if ("PENDING".equals(r.getStatus())) { %>
+                                                <a href="admin?action=resolve_report&id=<%= r.getId() %>" class="btn btn-outline-success btn-sm rounded-pill">
+                                                    Xử lý
+                                                </a>
+                                            <% } %>
+                                        </div>
                                     </td>
                                 </tr>
                                 <% 
@@ -277,6 +339,155 @@
                 </div>
             </div>
         </div>
+        </div>
+    </div>
+
+    <!-- Group Management -->
+    <div class="row g-4 mt-2">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0 fw-bold">Quản lý Nhóm chat</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Tên nhóm</th>
+                                    <th>Người tạo</th>
+                                    <th>Thành viên</th>
+                                    <th>Ngày tạo</th>
+                                    <th>Hành động</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% 
+                                    List<Object[]> groups = (List<Object[]>) request.getAttribute("groups");
+                                    if (groups != null && !groups.isEmpty()) {
+                                        for (Object[] g : groups) {
+                                %>
+                                <tr>
+                                    <td><span class="fw-bold text-primary"><%= g[1] %></span></td>
+                                    <td>@<%= g[2] %></td>
+                                    <td><span class="badge bg-light text-dark"><%= g[3] %> tv</span></td>
+                                    <td class="small text-muted"><%= g[4].toString().substring(0, 16) %></td>
+                                    <td>
+                                        <div class="d-flex gap-1">
+                                            <button class="btn btn-outline-primary btn-sm rounded-pill" onclick="manageGroupMembers('<%= g[0] %>', '<%= g[1] %>')">Thành viên</button>
+                                            <a href="admin?action=delete_group&groupId=<%= g[0] %>" 
+                                               class="btn btn-outline-danger btn-sm rounded-pill"
+                                               onclick="return confirm('Bạn có chắc muốn giải tán nhóm này và xóa toàn bộ tin nhắn?')">
+                                                Giải tán
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <% 
+                                        }
+                                    } else {
+                                %>
+                                <tr><td colspan="5" class="text-center py-3 text-muted">Chưa có nhóm nào</td></tr>
+                                <% } %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- File & Media Management -->
+    <div class="row g-4 mt-2">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0 fw-bold">Quản lý File & Hình ảnh</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Loại</th>
+                                    <th>Người gửi</th>
+                                    <th>Nội dung/Preview</th>
+                                    <th>Ngày gửi</th>
+                                    <th>Hành động</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% 
+                                    List<Message> media = (List<Message>) request.getAttribute("media");
+                                    if (media != null && !media.isEmpty()) {
+                                        for (Message m : media) {
+                                %>
+                                <tr>
+                                    <td><span class="badge bg-secondary text-uppercase"><%= m.getType() %></span></td>
+                                    <td>@<%= m.getSenderName() %></td>
+                                    <td>
+                                        <% if ("IMAGE".equals(m.getType())) { %>
+                                            <img src="<%= m.getContent() %>" style="max-height: 40px; border-radius: 4px;" alt="preview">
+                                        <% } else { %>
+                                            <div class="text-truncate" style="max-width: 200px;"><%= m.getContent() %></div>
+                                        <% } %>
+                                    </td>
+                                    <td class="small text-muted"><%= m.getSentAt().toString().substring(0, 16) %></td>
+                                    <td>
+                                        <a href="admin?action=delete_message&msgId=<%= m.getId() %>" 
+                                           class="btn btn-outline-danger btn-sm rounded-pill"
+                                           onclick="return confirm('Xóa file/hình ảnh này?')">
+                                            Xóa
+                                        </a>
+                                    </td>
+                                </tr>
+                                <% 
+                                        }
+                                    } else {
+                                %>
+                                <tr><td colspan="5" class="text-center py-3 text-muted">Chưa có file nào được tải lên</td></tr>
+                                <% } %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Report Detail Modal -->
+<div class="modal fade" id="reportDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow" style="border-radius: 24px;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold">Chi tiết báo cáo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="mb-3">
+                    <label class="small text-muted">Người báo cáo</label>
+                    <div class="fw-bold text-primary" id="modalReporter">@user</div>
+                </div>
+                <div class="mb-3">
+                    <label class="small text-muted">Người bị báo cáo</label>
+                    <div class="fw-bold text-danger" id="modalReported">@user</div>
+                </div>
+                <div class="mb-3">
+                    <label class="small text-muted">Lý do & Nội dung báo cáo</label>
+                    <div class="p-3 bg-light rounded-3 small" id="modalReason">Lý do...</div>
+                </div>
+                <div id="modalMsgSection" class="mb-4">
+                    <label class="small text-muted">Tin nhắn bị báo cáo</label>
+                    <div class="p-3 bg-warning bg-opacity-10 border border-warning border-opacity-25 rounded-3 italic" id="modalMsgContent">Nội dung tin nhắn...</div>
+                </div>
+                
+                <div class="d-grid gap-2">
+                    <button class="btn btn-danger rounded-pill" id="btnBanUser">Khóa tài khoản người vi phạm</button>
+                    <button class="btn btn-outline-danger rounded-pill" id="btnDeleteMsg">Xóa tin nhắn vi phạm</button>
+                    <button class="btn btn-outline-secondary rounded-pill" data-bs-dismiss="modal">Đóng</button>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -337,8 +548,98 @@
     </div>
 </div>
 
+<!-- Group Members Modal -->
+<div class="modal fade" id="groupMembersModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow" style="border-radius: 24px;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold">Thành viên: <span id="modalGroupName">Nhóm</span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form action="admin" method="GET" class="mb-3">
+                    <input type="hidden" name="action" value="add_member">
+                    <input type="hidden" name="groupId" id="modalGroupIdAdd">
+                    <div class="input-group">
+                        <input type="text" name="username" class="form-control rounded-start-pill" placeholder="Thêm username vào nhóm...">
+                        <button type="submit" class="btn btn-success rounded-end-pill">Thêm</button>
+                    </div>
+                </form>
+                <div class="list-group list-group-flush" id="modalMemberList" style="max-height: 300px; overflow-y: auto;">
+                    <!-- Members will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- System Config Modal -->
+<div class="modal fade" id="configModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow" style="border-radius: 24px;">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold">Cấu hình hệ thống</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">Session Timeout (phút)</label>
+                    <input type="number" class="form-control rounded-pill" value="30">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">Giới hạn Upload (MB)</label>
+                    <input type="number" class="form-control rounded-pill" value="10">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">Chế độ bảo trì</label>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox">
+                        <label class="form-check-label">Kích hoạt</label>
+                    </div>
+                </div>
+                <button class="btn btn-primary w-100 rounded-pill mt-3">Lưu cấu hình</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+    function showConfig() {
+        new bootstrap.Modal(document.getElementById('configModal')).show();
+    }
+
+    async function manageGroupMembers(groupId, groupName) {
+        document.getElementById('modalGroupName').innerText = groupName;
+        document.getElementById('modalGroupIdAdd').value = groupId;
+        const list = document.getElementById('modalMemberList');
+        list.innerHTML = '<div class="text-center p-3"><div class="spinner-border spinner-border-sm text-primary"></div></div>';
+        
+        new bootstrap.Modal(document.getElementById('groupMembersModal')).show();
+        
+        try {
+            const res = await fetch('admin?action=get_members&groupId=' + groupId);
+            const members = await res.json();
+            list.innerHTML = '';
+            members.forEach(u => {
+                list.innerHTML += `
+                    <div class="list-group-item d-flex justify-content-between align-items-center border-0 px-0">
+                        <div>
+                            <div class="fw-bold">@${u.username}</div>
+                            <div class="small text-muted">${u.fullName}</div>
+                        </div>
+                        <a href="admin?action=remove_member&groupId=${groupId}&userId=${u.id}" 
+                           class="btn btn-link text-danger btn-sm p-0" 
+                           onclick="return confirm('Xóa người này khỏi nhóm?')">Xóa</a>
+                    </div>
+                `;
+            });
+            if (members.length === 0) list.innerHTML = '<div class="text-center text-muted p-3">Không có thành viên</div>';
+        } catch (e) {
+            list.innerHTML = '<div class="text-center text-danger p-3">Lỗi tải dữ liệu</div>';
+        }
+    }
+
     function showUserDetail(id, username, fullName, role, status, bannedUntil, loginCount, lastSeen) {
         document.getElementById('modalId').innerText = id;
         document.getElementById('modalUsername').innerText = '@' + username;
@@ -372,6 +673,34 @@
         document.getElementById('ban1w').href = `admin?action=ban&id=\${id}&minutes=10080`;
 
         new bootstrap.Modal(document.getElementById('userModal')).show();
+    }
+
+    function showReportDetail(id, reporter, reported, reportedId, reason, msgContent, msgId) {
+        document.getElementById('modalReporter').innerText = '@' + reporter;
+        document.getElementById('modalReported').innerText = '@' + reported;
+        document.getElementById('modalReason').innerText = reason;
+        
+        if (msgContent && msgContent !== 'null' && msgContent !== '') {
+            document.getElementById('modalMsgSection').style.display = 'block';
+            document.getElementById('modalMsgContent').innerText = msgContent;
+            document.getElementById('btnDeleteMsg').style.display = 'block';
+            document.getElementById('btnDeleteMsg').onclick = function() {
+                if (confirm('Xóa tin nhắn này?')) {
+                    location.href = 'admin?action=delete_message&msgId=' + msgId + '&reportId=' + id;
+                }
+            };
+        } else {
+            document.getElementById('modalMsgSection').style.display = 'none';
+            document.getElementById('btnDeleteMsg').style.display = 'none';
+        }
+        
+        document.getElementById('btnBanUser').onclick = function() {
+            if (confirm('Khóa tài khoản này?')) {
+                location.href = 'admin?action=lock&id=' + reportedId;
+            }
+        };
+        
+        new bootstrap.Modal(document.getElementById('reportDetailModal')).show();
     }
 
     function confirmDelete() {

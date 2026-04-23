@@ -156,15 +156,19 @@ public class ChatWebSocketServer {
         t.printStackTrace();
     }
 
-    private void broadcastOnlineStatus(String username, boolean isOnline) throws IOException {
+    private void broadcastOnlineStatus(String username, boolean isOnline) {
         String msg = "STATUS_UPDATE:" + username + "|" + (isOnline ? "ONLINE" : "OFFLINE");
         broadcast(msg);
     }
 
-    private void broadcast(String msg) throws IOException {
+    public static void broadcast(String msg) {
         for (Session s : clients.values()) {
             if (s.isOpen()) {
-                s.getBasicRemote().sendText(msg);
+                try {
+                    s.getBasicRemote().sendText(msg);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
             }
         }
     }
