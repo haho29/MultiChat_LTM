@@ -13,8 +13,12 @@ public class User {
     private Timestamp lastSeen;
     private Timestamp createdAt;
     private Timestamp bannedUntil;
+    private int loginCount;
 
     public User() {}
+
+    public int getLoginCount() { return loginCount; }
+    public void setLoginCount(int loginCount) { this.loginCount = loginCount; }
 
     public Timestamp getBannedUntil() { return bannedUntil; }
     public void setBannedUntil(Timestamp bannedUntil) { this.bannedUntil = bannedUntil; }

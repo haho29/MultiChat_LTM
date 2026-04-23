@@ -120,6 +120,50 @@ public class FriendDAO {
         return false;
     }
 
+    public List<User[]> getAllFriendships() {
+        List<User[]> list = new ArrayList<>();
+        String sql = "SELECT u1.id as id1, u1.username as user1, u2.id as id2, u2.username as user2, f.status, f.created_at " +
+                     "FROM [friends] f " +
+                     "JOIN [users] u1 ON f.user_id = u1.id " +
+                     "JOIN [users] u2 ON f.friend_id = u2.id " +
+                     "ORDER BY f.created_at DESC";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                User u1 = new User();
+                u1.setId(rs.getInt("id1"));
+                u1.setUsername(rs.getString("user1"));
+                u1.setStatus(rs.getString("status")); // Reuse status to store friendship status for simplicity in array
+                u1.setCreatedAt(rs.getTimestamp("created_at"));
+
+                User u2 = new User();
+                u2.setId(rs.getInt("id2"));
+                u2.setUsername(rs.getString("user2"));
+                
+                list.add(new User[]{u1, u2});
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    public boolean deleteFriendship(int u1, int u2) {
+        String sql = "DELETE FROM [friends] WHERE ([user_id] = ? AND [friend_id] = ?) OR ([user_id] = ? AND [friend_id] = ?)";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, u1);
+            ps.setInt(2, u2);
+            ps.setInt(3, u2);
+            ps.setInt(4, u1);
+            return ps.executeUpdate() > 0;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
     public List<User> getSentRequests(int userId) {
         List<User> list = new ArrayList<>();
         String sql = "SELECT u.* FROM [friends] f JOIN [users] u ON f.friend_id = u.id " +

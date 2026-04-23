@@ -32,7 +32,9 @@ public class UserDAO {
             ps.setString(2, hashPassword(password.trim()));
             ResultSet rs = ps.executeQuery();
             if (rs.next()) {
-                return mapUser(rs);
+                User u = mapUser(rs);
+                incrementLoginCount(u.getId());
+                return u;
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -112,6 +114,49 @@ public class UserDAO {
         return null;
     }
 
+    public List<User> searchUsersWithFilter(String query, String status) {
+        List<User> list = new ArrayList<>();
+        StringBuilder sql = new StringBuilder("SELECT * FROM [users] WHERE 1=1 ");
+        if (query != null && !query.trim().isEmpty()) {
+            sql.append("AND ([username] LIKE ? OR [full_name] LIKE ?) ");
+        }
+        if (status != null && !status.equals("ALL")) {
+            sql.append("AND [status] = ? ");
+        }
+        sql.append(" ORDER BY [created_at] DESC");
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+            int paramIndex = 1;
+            if (query != null && !query.trim().isEmpty()) {
+                String pattern = "%" + query.trim() + "%";
+                ps.setString(paramIndex++, pattern);
+                ps.setString(paramIndex++, pattern);
+            }
+            if (status != null && !status.equals("ALL")) {
+                ps.setString(paramIndex++, status);
+            }
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                list.add(mapUser(rs));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    private void incrementLoginCount(int userId) {
+        String sql = "UPDATE [users] SET [login_count] = [login_count] + 1, [last_seen] = GETDATE() WHERE [id] = ?";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, userId);
+            ps.executeUpdate();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     public List<User> getAllUsers() {
         List<User> list = new ArrayList<>();
         String sql = "SELECT * FROM [users]";
@@ -176,6 +221,9 @@ public class UserDAO {
         u.setCreatedAt(rs.getTimestamp("created_at"));
         try {
             u.setBannedUntil(rs.getTimestamp("banned_until"));
+        } catch (Exception e) {}
+        try {
+            u.setLoginCount(rs.getInt("login_count"));
         } catch (Exception e) {}
         return u;
     }

@@ -82,10 +82,9 @@
 <nav class="navbar navbar-expand-lg mb-4">
     <div class="container">
         <a class="navbar-brand fw-bold" style="background: var(--primary-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;" href="#"><i class="bi bi-shield-check me-2" style="color: var(--primary)"></i>SkyChat Admin</a>
-        <div class="ms-auto">
-            <a href="chat.jsp" class="btn btn-outline-primary btn-sm me-2">Về trang Chat</a>
-            <a href="logout" class="btn btn-danger btn-sm">Đăng xuất</a>
-        </div>
+                <div class="d-flex gap-2">
+                    <a href="logout" class="btn btn-danger rounded-pill px-4">Đăng xuất</a>
+                </div>
     </div>
 </nav>
 
@@ -94,8 +93,17 @@
         <!-- User Management -->
         <div class="col-12">
             <div class="card">
-                <div class="card-header bg-white py-3">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
                     <h5 class="mb-0 fw-bold">Quản lý người dùng</h5>
+                    <form class="d-flex gap-2" action="admin" method="GET">
+                        <select name="status" class="form-select form-select-sm" style="width: 150px;">
+                            <option value="ALL" <%= "ALL".equals(request.getAttribute("statusFilter")) || request.getAttribute("statusFilter") == null ? "selected" : "" %>>Tất cả trạng thái</option>
+                            <option value="ACTIVE" <%= "ACTIVE".equals(request.getAttribute("statusFilter")) ? "selected" : "" %>>Đang hoạt động</option>
+                            <option value="BANNED" <%= "BANNED".equals(request.getAttribute("statusFilter")) ? "selected" : "" %>>Bị khóa</option>
+                        </select>
+                        <input type="text" name="search" class="form-control form-control-sm" placeholder="Tìm tên/username..." value="<%= request.getParameter("search") != null ? request.getParameter("search") : "" %>" style="width: 200px;">
+                        <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search"></i></button>
+                    </form>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
@@ -103,9 +111,8 @@
                             <thead class="table-light">
                                 <tr>
                                     <th>ID</th>
-                                    <th>Tên đăng nhập</th>
-                                    <th>Họ tên</th>
-                                    <th>Vai trò</th>
+                                    <th>Người dùng</th>
+                                    <th>Hoạt động</th>
                                     <th>Trạng thái</th>
                                     <th>Hành động</th>
                                 </tr>
@@ -119,25 +126,45 @@
                                 %>
                                 <tr>
                                     <td><%= u.getId() %></td>
-                                    <td class="fw-bold">@<%= u.getUsername() %></td>
-                                    <td><%= u.getFullName() %></td>
-                                    <td><%= u.getRole() %></td>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div class="avatar bg-light text-primary" style="width: 32px; height: 32px; font-size: 0.8rem; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                                <%= (u.getUsername() != null && !u.getUsername().isEmpty()) ? u.getUsername().substring(0, 1).toUpperCase() : "?" %>
+                                            </div>
+                                            <div>
+                                                <div class="fw-bold">@<%= u.getUsername() %></div>
+                                                <div class="small text-muted"><%= u.getFullName() %></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="small">
+                                            <div><i class="bi bi-box-arrow-in-right me-1"></i><%= u.getLoginCount() %> lần đăng nhập</div>
+                                            <div class="text-muted"><i class="bi bi-clock-history me-1"></i><%= u.getLastSeen() != null ? u.getLastSeen().toString().substring(0, 16) : "Chưa có" %></div>
+                                        </div>
+                                    </td>
                                     <td>
                                         <span class="status-badge <%= "ACTIVE".equals(u.getStatus()) ? (u.isBanned() ? "status-pending" : "status-active") : "status-banned" %>">
-                                            <%= u.isBanned() ? "CẤM CHAT ĐẾN " + u.getBannedUntil().toString().substring(11, 16) : u.getStatus() %>
+                                            <%= u.isBanned() ? "CẤM CHAT" : u.getStatus() %>
                                         </span>
                                     </td>
                                     <td>
                                         <button class="btn btn-outline-primary btn-sm rounded-pill px-3" 
-                                                onclick="showUserDetail('<%= u.getId() %>', '<%= u.getUsername() %>', '<%= u.getFullName() %>', '<%= u.getRole() %>', '<%= u.getStatus() %>', '<%= u.isBanned() ? u.getBannedUntil().toString().substring(0, 16) : "Không" %>')">
-                                            Xem chi tiết
+                                                onclick="showUserDetail('<%= u.getId() %>', '<%= u.getUsername() %>', '<%= u.getFullName() %>', '<%= u.getRole() %>', '<%= u.getStatus() %>', '<%= u.isBanned() ? u.getBannedUntil().toString().substring(0, 16) : "Không" %>', '<%= u.getLoginCount() %>', '<%= u.getLastSeen() %>')">
+                                            Chi tiết
                                         </button>
                                     </td>
                                 </tr>
                                 <% 
                                         }
-                                    } 
+                                    } else {
                                 %>
+                                <tr>
+                                    <td colspan="5" class="text-center py-4 text-muted">
+                                        <i class="bi bi-people me-2"></i>Không tìm thấy người dùng nào
+                                    </td>
+                                </tr>
+                                <% } %>
                             </tbody>
                         </table>
                     </div>
@@ -159,7 +186,7 @@
                                     <th>Ngày gửi</th>
                                     <th>Người báo cáo</th>
                                     <th>Người bị báo cáo</th>
-                                    <th>Nội dung báo cáo</th>
+                                    <th>Nội dung</th>
                                     <th>Trạng thái</th>
                                     <th>Hành động</th>
                                 </tr>
@@ -198,6 +225,58 @@
                 </div>
             </div>
         </div>
+
+        <!-- Friendship Management -->
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0 fw-bold">Quản lý kết bạn & Mối quan hệ</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Người gửi</th>
+                                    <th>Người nhận</th>
+                                    <th>Ngày tạo</th>
+                                    <th>Trạng thái</th>
+                                    <th>Hành động</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% 
+                                    List<User[]> friendships = (List<User[]>) request.getAttribute("friendships");
+                                    if (friendships != null) {
+                                        for (User[] pair : friendships) {
+                                %>
+                                <tr>
+                                    <td><span class="fw-bold text-primary">@<%= pair[0].getUsername() %></span></td>
+                                    <td><span class="fw-bold text-info">@<%= pair[1].getUsername() %></span></td>
+                                    <td class="small text-muted"><%= pair[0].getCreatedAt().toString().substring(0, 16) %></td>
+                                    <td>
+                                        <span class="badge <%= "ACCEPTED".equals(pair[0].getStatus()) ? "bg-success" : "bg-warning" %>">
+                                            <%= pair[0].getStatus() %>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a href="admin?action=delete_friendship&u1=<%= pair[0].getId() %>&u2=<%= pair[1].getId() %>" 
+                                           class="btn btn-outline-danger btn-sm rounded-pill"
+                                           onclick="return confirm('Bạn có chắc muốn xóa mối quan hệ này?')">
+                                            Hủy kết bạn
+                                        </a>
+                                    </td>
+                                </tr>
+                                <% 
+                                        }
+                                    } 
+                                %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -218,10 +297,10 @@
                 
                 <ul class="list-group list-group-flush mb-4">
                     <li class="list-group-item d-flex justify-content-between align-items-center">
-                        ID người dùng <span class="fw-bold" id="modalId">1</span>
+                        Số lần đăng nhập <span class="fw-bold" id="modalLoginCount">0</span>
                     </li>
                     <li class="list-group-item d-flex justify-content-between align-items-center">
-                        Vai trò <span class="badge bg-secondary" id="modalRole">USER</span>
+                        Hoạt động cuối <span class="text-muted small" id="modalLastSeen">Chưa có</span>
                     </li>
                     <li class="list-group-item d-flex justify-content-between align-items-center">
                         Trạng thái <span class="status-badge" id="modalStatusBadge">ACTIVE</span>
@@ -260,13 +339,15 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-    function showUserDetail(id, username, fullName, role, status, bannedUntil) {
+    function showUserDetail(id, username, fullName, role, status, bannedUntil, loginCount, lastSeen) {
         document.getElementById('modalId').innerText = id;
         document.getElementById('modalUsername').innerText = '@' + username;
         document.getElementById('modalFullName').innerText = fullName;
         document.getElementById('modalRole').innerText = role;
         document.getElementById('modalAvatar').innerText = username[0].toUpperCase();
         document.getElementById('modalBannedUntil').innerText = bannedUntil;
+        document.getElementById('modalLoginCount').innerText = loginCount;
+        document.getElementById('modalLastSeen').innerText = lastSeen && lastSeen !== 'null' ? lastSeen.substring(0, 16) : "Chưa có";
         
         const badge = document.getElementById('modalStatusBadge');
         badge.innerText = status;
