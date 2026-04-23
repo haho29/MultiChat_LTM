@@ -1,5 +1,6 @@
 package com.network.web;
 
+import com.network.core.UserDAO;
 import com.network.model.User;
 import java.io.File;
 import java.io.IOException;
@@ -19,6 +20,7 @@ import jakarta.servlet.http.Part;
 public class UploadServlet extends HttpServlet {
     
     private static final String UPLOAD_DIR = "uploads";
+    private final UserDAO userDAO = new UserDAO();
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) 
@@ -27,6 +29,12 @@ public class UploadServlet extends HttpServlet {
         User user = (User) request.getSession().getAttribute("user");
         if (user == null) {
             response.setStatus(401);
+            return;
+        }
+
+        User dbUser = userDAO.getUserById(user.getId());
+        if (dbUser != null && "BANNED".equals(dbUser.getStatus())) {
+            response.setStatus(403);
             return;
         }
 

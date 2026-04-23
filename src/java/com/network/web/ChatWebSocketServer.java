@@ -68,6 +68,18 @@ public class ChatWebSocketServer {
                 messageDAO.saveMessage(msg);
                 
                 broadcast("FROM_ALL:" + senderName + "|" + content + "|" + currentTime + "|" + type);
+            } else if (target.equals("RECALL")) {
+                int msgId = Integer.parseInt(content);
+                if (messageDAO.recallMessage(msgId, sender.getId())) {
+                    broadcast("MSG_RECALL:" + msgId);
+                }
+            } else if (target.equals("EDIT")) {
+                String[] editParts = content.split("\\|", 2);
+                int msgId = Integer.parseInt(editParts[0]);
+                String newContent = editParts[1];
+                if (messageDAO.editMessage(msgId, sender.getId(), newContent)) {
+                    broadcast("MSG_EDIT:" + msgId + "|" + newContent);
+                }
             } else if (target.startsWith("TYPING_")) {
                 // Handle Typing signals: TYPING_START|target or TYPING_STOP|target
                 String action = target.split("_")[1]; // START or STOP
@@ -141,10 +153,14 @@ public class ChatWebSocketServer {
     }
 
     public static void sendFriendSignal(String username) {
+        sendSignal(username, "FRIEND_UPDATE");
+    }
+
+    public static void sendSignal(String username, String signal) {
         Session s = clients.get(username);
         if (s != null && s.isOpen()) {
             try {
-                s.getBasicRemote().sendText("FRIEND_UPDATE");
+                s.getBasicRemote().sendText(signal);
             } catch (IOException e) {
                 e.printStackTrace();
             }

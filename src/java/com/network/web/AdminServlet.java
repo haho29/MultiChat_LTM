@@ -44,12 +44,18 @@ public class AdminServlet extends HttpServlet {
                 int targetId = Integer.parseInt(idStr);
                 if ("lock".equals(action)) {
                     userDAO.updateStatus(targetId, "BANNED");
+                    User targetUser = userDAO.getUserById(targetId);
+                    if (targetUser != null) ChatWebSocketServer.sendSignal(targetUser.getUsername(), "SYSTEM_LOCK");
+                    String reportId = request.getParameter("reportId");
+                    if (reportId != null) reportDAO.updateReportStatus(Integer.parseInt(reportId), "RESOLVED");
                 } else if ("unlock".equals(action)) {
                     userDAO.updateStatus(targetId, "ACTIVE");
                     userDAO.banUser(targetId, -999999); 
                 } else if ("ban".equals(action)) {
                     int minutes = Integer.parseInt(request.getParameter("minutes"));
                     userDAO.banUser(targetId, minutes);
+                    String reportId = request.getParameter("reportId");
+                    if (reportId != null) reportDAO.updateReportStatus(Integer.parseInt(reportId), "RESOLVED");
                 } else if ("delete".equals(action)) {
                     userDAO.deleteUser(targetId);
                 }

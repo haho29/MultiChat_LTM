@@ -186,7 +186,33 @@
             background: #ef4444; color: white;
             font-size: 0.7rem; padding: 2px 8px;
             border-radius: 10px; margin-left: auto; cursor: pointer;
+            box-shadow: 0 2px 5px rgba(239, 68, 68, 0.3);
         }
+        .unread-badge {
+            background: #ef4444; color: white;
+            font-size: 0.65rem; min-width: 18px; height: 18px;
+            border-radius: 9px; display: flex; align-items: center; justify-content: center;
+            font-weight: 700; border: 2px solid white;
+        }
+        
+        /* Message Actions */
+        .msg-actions {
+            position: absolute; top: -20px; right: 0;
+            display: none; background: white; border-radius: 12px;
+            padding: 4px 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            gap: 8px; z-index: 10; border: 1px solid #f1f5f9;
+        }
+        .message:hover .msg-actions { display: flex; }
+        .action-btn { cursor: pointer; color: var(--text-muted); transition: color 0.2s; }
+        .action-btn:hover { color: var(--primary); }
+        .action-btn.delete:hover { color: #ef4444; }
+
+        .message-deleted {
+            font-style: italic; opacity: 0.6; color: var(--text-muted) !important;
+            background: #f8fafc !important; border: 1px dashed #cbd5e1 !important;
+            box-shadow: none !important;
+        }
+        .edited-label { font-size: 0.65rem; opacity: 0.6; margin-left: 4px; }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
@@ -219,7 +245,10 @@
         <div class="section-label">Bạn bè</div>
         <div id="friendsList"></div>
 
-        <div class="section-label">Lời mời đã nhận</div>
+        <div class="section-label d-flex align-items-center">
+            Lời mời đã nhận
+            <span id="pendingBadge" class="badge-pending d-none">0</span>
+        </div>
         <div id="incomingList" class="px-2"></div>
 
         <div class="section-label">Lời mời đã gửi</div>
@@ -302,6 +331,32 @@
         } else if (data === "FRIEND_UPDATE") {
             loadFriends();
             return;
+        } else if (data === "SYSTEM_LOCK") {
+            alert("Tài khoản của bạn đã bị khóa bởi Admin. Bạn sẽ bị đăng xuất ngay bây giờ.");
+            window.location.href = "logout";
+            return;
+        }
+ else if (data.startsWith("MSG_RECALL:")) {
+            const msgId = data.split(":")[1];
+            const msgEl = document.querySelector(`[data-msg-id="\${msgId}"]`);
+            if (msgEl) {
+                msgEl.classList.add("message-deleted");
+                msgEl.querySelector(".msg-content").innerHTML = "Tin nhắn đã bị thu hồi";
+                msgEl.querySelector(".msg-actions")?.remove();
+            }
+            return;
+        } else if (data.startsWith("MSG_EDIT:")) {
+            const parts = data.split(":")[1].split("|");
+            const msgId = parts[0];
+            const newContent = parts[1];
+            const msgEl = document.querySelector(`[data-msg-id="\${msgId}"]`);
+            if (msgEl) {
+                msgEl.querySelector(".msg-content").innerHTML = newContent;
+                if (!msgEl.querySelector(".edited-label")) {
+                    msgEl.querySelector(".msg-time").insertAdjacentHTML('afterend', '<span class="edited-label">(đã chỉnh sửa)</span>');
+                }
+            }
+            return;
         }
         handleMessage(data);
     };
@@ -327,53 +382,93 @@
         const storageKey = (prefix === "FROM_ALL") ? "ALL" : sender;
         
         if (currentTarget === storageKey) {
-            appendMessage(sender, content, time, isMeMarker || sender === currentUser, type, false);
+            appendMessage(sender, content, time, isMeMarker || sender === currentUser, type, false, 0, false, false);
             if (!isMeMarker && currentTarget !== 'ALL') {
                 socket.send(`MARK_READ|${currentTarget}`);
+            }
+        } else {
+            // New message from someone else - update badges
+            if (prefix !== "FROM_ALL") {
+                loadFriends();
+                showBrowserNotification(sender, content);
             }
         }
     }
 
-    function appendMessage(sender, content, time, isMe, type = "TEXT", isRead = false) {
+    function appendMessage(sender, content, time, isMe, type = "TEXT", isRead = false, msgId = 0, isEdited = false, isDeleted = false) {
         const box = document.getElementById("messagesBox");
         
-        // Remove old 'Seen' labels from my previous messages
         if (isMe) {
             document.querySelectorAll('.msg-seen').forEach(el => el.innerText = "");
         }
 
         const div = document.createElement("div");
-        div.className = `message \${isMe ? 'message-me' : 'message-others'}`;
+        div.className = `message \${isMe ? 'message-me' : 'message-others'} \${isDeleted ? 'message-deleted' : ''}`;
+        if (msgId) div.setAttribute("data-msg-id", msgId);
         
-        let htmlContent = content;
-        if (type === "IMAGE") {
-            htmlContent = `<img src="\${content}" class="img-fluid rounded-3 mt-1" style="max-width: 250px; cursor: pointer;" onclick="window.open('\${content}')">`;
-        } else if (type === "STICKER") {
-            htmlContent = `<img src="https://fonts.gstatic.com/s/e/notoemoji/latest/\${content}/512.gif" width="80" class="d-block">`;
-            div.style.background = "none";
-            div.style.padding = "0";
+        let htmlContent = isDeleted ? "Tin nhắn đã bị thu hồi" : content;
+        if (!isDeleted) {
+            if (type === "IMAGE") {
+                htmlContent = `<img src="\${content}" class="img-fluid rounded-3 mt-1" style="max-width: 250px; cursor: pointer;" onclick="window.open('\${content}')">`;
+            } else if (type === "STICKER") {
+                htmlContent = `<img src="https://fonts.gstatic.com/s/e/notoemoji/latest/\${content}/512.gif" width="80" class="d-block">`;
+                div.style.background = "none";
+                div.style.padding = "0";
+            }
         }
 
         div.innerHTML = `
             \${!isMe && currentTarget === 'ALL' ? `<small class="fw-bold d-block mb-1 text-primary">\${sender}</small>` : ''}
+            \${isMe && !isDeleted ? `
+                <div class="msg-actions">
+                    <i class="bi bi-pencil action-btn" onclick="editMessagePrompt(\${msgId}, '\${content}')" title="Sửa"></i>
+                    <i class="bi bi-trash action-btn delete" onclick="recallMessage(\${msgId})" title="Thu hồi"></i>
+                </div>
+            ` : ''}
             <div class="d-flex justify-content-between align-items-start gap-2">
-                <div>\${htmlContent}</div>
-                \${!isMe ? `<i class="bi bi-flag text-muted small cursor-pointer" onclick="reportUser('\${sender}', '\${content}')"></i>` : ''}
+                <div class="msg-content">\${htmlContent}</div>
+                \${!isMe && !isDeleted ? `<i class="bi bi-flag text-muted small cursor-pointer" onclick="reportUser('\${sender}', '\${content}', \${msgId})" title="Báo cáo"></i>` : ''}
             </div>
-            <span class="msg-time">\${time}</span>
+            <div class="d-flex align-items-center">
+                <span class="msg-time">\${time}</span>
+                \${isEdited ? '<span class="edited-label">(đã chỉnh sửa)</span>' : ''}
+            </div>
             \${isMe && currentTarget !== 'ALL' ? `<span class="msg-seen small" style="font-size: 0.6rem; float: right; margin-top: -15px; margin-right: -40px; color: var(--primary);">\${isRead ? 'Đã xem' : ''}</span>` : ''}
         `;
         box.appendChild(div);
         box.scrollTop = box.scrollHeight;
     }
 
-    async function reportUser(username, content) {
+    function recallMessage(msgId) {
+        if (confirm("Bạn có chắc muốn thu hồi tin nhắn này?")) {
+            socket.send(`RECALL|\${msgId}`);
+        }
+    }
+
+    function editMessagePrompt(msgId, oldContent) {
+        const newContent = prompt("Chỉnh sửa tin nhắn:", oldContent);
+        if (newContent && newContent.trim() !== oldContent) {
+            socket.send(`EDIT|\${msgId}|\${newContent.trim()}`);
+        }
+    }
+
+    function showBrowserNotification(sender, content) {
+        if (!("Notification" in window)) return;
+        if (Notification.permission === "granted") {
+            new Notification(`Tin nhắn mới từ \${sender}`, { body: content });
+        } else if (Notification.permission !== "denied") {
+            Notification.requestPermission();
+        }
+    }
+
+    async function reportUser(username, content, msgId = 0) {
         const reason = prompt(`Báo cáo nội dung của \${username}:\n"\${content}"\n\nLý do:`);
         if (reason) {
             const formData = new URLSearchParams();
-            formData.append('reportedId', currentTargetId);
+            formData.append('reportedUsername', username);
             formData.append('reason', reason);
-            formData.append('messageContent', content);
+            formData.append('content', content);
+            if (msgId) formData.append('messageId', msgId);
             
             await fetch('report', { method: 'POST', body: formData });
             alert("Đã gửi báo cáo cho Admin.");
@@ -453,13 +548,27 @@
             item.innerHTML = `
                 <div class="avatar">\${f.username[0].toUpperCase()}</div>
                 <div class="flex-grow-1">
-                    <div class="fw-bold text-truncate" style="max-width: 150px;">\${f.fullName}</div>
+                    <div class="fw-bold text-truncate" style="max-width: 140px;">\${f.fullName}</div>
                     <div class="small text-muted">@\${f.username}</div>
                 </div>
-                <div class="status-dot \${f.isOnline ? 'online' : ''}"></div>
+                <div class="d-flex flex-column align-items-end gap-1">
+                    <div class="status-dot \${f.isOnline ? 'online' : ''}"></div>
+                    \${f.unreadCount > 0 ? `<span class="unread-badge">\${f.unreadCount}</span>` : ''}
+                </div>
             `;
             friendsList.appendChild(item);
         });
+
+        // Load Pending Count
+        const resCount = await fetch("friend?type=pendingCount");
+        const countData = await resCount.json();
+        const pendingBadge = document.getElementById("pendingBadge");
+        if (countData.count > 0) {
+            pendingBadge.innerText = countData.count;
+            pendingBadge.classList.remove("d-none");
+        } else {
+            pendingBadge.classList.add("d-none");
+        }
 
         // Load Incoming Requests
         const resIncoming = await fetch("friend?type=pending");
@@ -558,14 +667,23 @@
         
         if (username !== 'ALL') {
             socket.send(`MARK_READ|\${username}`);
+            loadFriends(); // Refresh to clear the badge locally
         }
         
         // Highlight active
         document.querySelectorAll('.nav-item-chat').forEach(i => i.classList.remove('active'));
+        const activeItem = Array.from(document.querySelectorAll('.nav-item-chat')).find(el => el.innerText.includes(username));
+        if (activeItem) activeItem.classList.add('active');
+
         // Load history
         const res = await fetch(`messages?target=\${username}&targetId=\${id}`);
         const history = await res.json();
-        history.forEach(m => appendMessage(m.senderName, m.content, m.time, m.isMe, m.type));
+        history.forEach(m => appendMessage(m.senderName, m.content, m.time, m.isMe, m.type, m.isRead, m.id, m.isEdited, m.isDeleted));
+    }
+
+    // Request Notification Permission
+    if ("Notification" in window && Notification.permission === "default") {
+        Notification.requestPermission();
     }
 
     // Initial Load

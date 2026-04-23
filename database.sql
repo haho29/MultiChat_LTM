@@ -25,7 +25,9 @@ CREATE TABLE users (
     status VARCHAR(20) DEFAULT 'ACTIVE',
     is_online BIT DEFAULT 0,
     last_seen DATETIME DEFAULT GETDATE(),
-    created_at DATETIME DEFAULT GETDATE()
+    created_at DATETIME DEFAULT GETDATE(),
+    banned_until DATETIME DEFAULT NULL,
+    login_count INT DEFAULT 0
 );
 
 -- Table: friends
@@ -68,6 +70,9 @@ CREATE TABLE messages (
     content NVARCHAR(MAX) NOT NULL,
     type VARCHAR(20) DEFAULT 'TEXT',
     sent_at DATETIME DEFAULT GETDATE(),
+    is_read BIT DEFAULT 0,
+    is_deleted BIT DEFAULT 0,
+    is_edited BIT DEFAULT 0,
     FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE NO ACTION,
     FOREIGN KEY (group_id) REFERENCES chat_groups(id) ON DELETE NO ACTION

@@ -14,6 +14,8 @@ public class Message {
     // UI help fields
     private String senderName;
     private boolean isRead;
+    private boolean isEdited;
+    private boolean isDeleted;
 
     public Message() {}
 
@@ -36,4 +38,8 @@ public class Message {
     public void setSentAt(Timestamp sentAt) { this.sentAt = sentAt; }
     public String getSenderName() { return senderName; }
     public void setSenderName(String senderName) { this.senderName = senderName; }
+    public boolean isEdited() { return isEdited; }
+    public void setEdited(boolean edited) { this.isEdited = edited; }
+    public boolean isDeleted() { return isDeleted; }
+    public void setDeleted(boolean deleted) { this.isDeleted = deleted; }
 }

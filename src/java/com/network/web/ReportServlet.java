@@ -27,6 +27,12 @@ public class ReportServlet extends HttpServlet {
             return;
         }
 
+        User dbUser = userDAO.getUserById(currentUser.getId());
+        if (dbUser != null && "BANNED".equals(dbUser.getStatus())) {
+            response.setStatus(403);
+            return;
+        }
+
         String reportedUsername = request.getParameter("reportedUsername");
         String content = request.getParameter("content");
         String reason = request.getParameter("reason");

@@ -196,4 +196,16 @@ public class FriendDAO {
         } catch (Exception e) {}
         return u;
     }
+    public int getPendingRequestCount(int userId) {
+        String sql = "SELECT COUNT(*) FROM [friends] WHERE [friend_id] = ? AND [status] = 'PENDING'";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, userId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) return rs.getInt(1);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return 0;
+    }
 }

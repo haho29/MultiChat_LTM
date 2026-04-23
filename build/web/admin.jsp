@@ -203,10 +203,21 @@
                                         </span>
                                     </td>
                                     <td>
-                                        <button class="btn btn-outline-primary btn-sm rounded-pill px-3" 
-                                                onclick="showUserDetail('<%= u.getId() %>', '<%= u.getUsername() %>', '<%= u.getFullName() %>', '<%= u.getRole() %>', '<%= u.getStatus() %>', '<%= u.isBanned() ? u.getBannedUntil().toString().substring(0, 16) : "Không" %>', '<%= u.getLoginCount() %>', '<%= u.getLastSeen() %>')">
-                                            Chi tiết
-                                        </button>
+                                        <div class="d-flex gap-1">
+                                            <button class="btn btn-outline-primary btn-sm rounded-pill px-3" 
+                                                    onclick="showUserDetail('<%= u.getId() %>', '<%= u.getUsername() %>', '<%= u.getFullName() %>', '<%= u.getRole() %>', '<%= u.getStatus() %>', '<%= u.isBanned() ? u.getBannedUntil().toString().substring(0, 16) : "Không" %>', '<%= u.getLoginCount() %>', '<%= u.getLastSeen() %>')">
+                                                Chi tiết
+                                            </button>
+                                            <% if ("ACTIVE".equals(u.getStatus())) { %>
+                                                <a href="admin?action=lock&id=<%= u.getId() %>" class="btn btn-outline-danger btn-sm rounded-pill" onclick="return confirm('Khóa tài khoản này?')">
+                                                    <i class="bi bi-lock"></i>
+                                                </a>
+                                            <% } else { %>
+                                                <a href="admin?action=unlock&id=<%= u.getId() %>" class="btn btn-outline-success btn-sm rounded-pill" onclick="return confirm('Mở khóa tài khoản này?')">
+                                                    <i class="bi bi-unlock"></i>
+                                                </a>
+                                            <% } %>
+                                        </div>
                                     </td>
                                 </tr>
                                 <% 
@@ -482,7 +493,18 @@
                 </div>
                 
                 <div class="d-grid gap-2">
-                    <button class="btn btn-danger rounded-pill" id="btnBanUser">Khóa tài khoản người vi phạm</button>
+                    <div class="btn-group w-100">
+                        <button class="btn btn-danger dropdown-toggle rounded-pill" data-bs-toggle="dropdown">
+                            <i class="bi bi-clock me-1"></i> Cấm chat người vi phạm
+                        </button>
+                        <ul class="dropdown-menu w-100 shadow border-0">
+                            <li><a class="dropdown-item" id="reportBan1d" href="#"><i class="bi bi-calendar-event me-2"></i>Cấm 1 ngày</a></li>
+                            <li><a class="dropdown-item" id="reportBan2d" href="#"><i class="bi bi-calendar-plus me-2"></i>Cấm 2 ngày</a></li>
+                            <li><a class="dropdown-item" id="reportBan1w" href="#"><i class="bi bi-calendar-range me-2"></i>Cấm 1 tuần</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-danger" id="reportLock" href="#"><i class="bi bi-person-x me-2"></i>Khóa tài khoản vĩnh viễn</a></li>
+                        </ul>
+                    </div>
                     <button class="btn btn-outline-danger rounded-pill" id="btnDeleteMsg">Xóa tin nhắn vi phạm</button>
                     <button class="btn btn-outline-secondary rounded-pill" data-bs-dismiss="modal">Đóng</button>
                 </div>
@@ -694,9 +716,24 @@
             document.getElementById('btnDeleteMsg').style.display = 'none';
         }
         
-        document.getElementById('btnBanUser').onclick = function() {
-            if (confirm('Khóa tài khoản này?')) {
-                location.href = 'admin?action=lock&id=' + reportedId;
+        document.getElementById('reportBan1d').onclick = function() {
+            if (confirm('Cấm chat người này 1 ngày?')) {
+                location.href = 'admin?action=ban&id=' + reportedId + '&minutes=1440&reportId=' + id;
+            }
+        };
+        document.getElementById('reportBan2d').onclick = function() {
+            if (confirm('Cấm chat người này 2 ngày?')) {
+                location.href = 'admin?action=ban&id=' + reportedId + '&minutes=2880&reportId=' + id;
+            }
+        };
+        document.getElementById('reportBan1w').onclick = function() {
+            if (confirm('Cấm chat người này 1 tuần?')) {
+                location.href = 'admin?action=ban&id=' + reportedId + '&minutes=10080&reportId=' + id;
+            }
+        };
+        document.getElementById('reportLock').onclick = function() {
+            if (confirm('Khóa tài khoản này vĩnh viễn?')) {
+                location.href = 'admin?action=lock&id=' + reportedId + '&reportId=' + id;
             }
         };
         

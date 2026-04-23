@@ -3,7 +3,9 @@ package com.network.core;
 import com.network.model.Message;
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class MessageDAO {
 
@@ -97,6 +99,64 @@ public class MessageDAO {
         return false;
     }
 
+    public boolean recallMessage(int id, int senderId) {
+        String sql = "UPDATE [messages] SET [is_deleted] = 1 WHERE [id] = ? AND [sender_id] = ?";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, id);
+            ps.setInt(2, senderId);
+            return ps.executeUpdate() > 0;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    public boolean editMessage(int id, int senderId, String newContent) {
+        String sql = "UPDATE [messages] SET [content] = ?, [is_edited] = 1 WHERE [id] = ? AND [sender_id] = ?";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, newContent);
+            ps.setInt(2, id);
+            ps.setInt(3, senderId);
+            return ps.executeUpdate() > 0;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    public int getUnreadCount(int userId) {
+        String sql = "SELECT COUNT(*) FROM [messages] WHERE [receiver_id] = ? AND [is_read] = 0 AND [is_deleted] = 0";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, userId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) return rs.getInt(1);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return 0;
+    }
+
+    public Map<Integer, Integer> getUnreadCountsPerSender(int userId) {
+        Map<Integer, Integer> counts = new HashMap<>();
+        String sql = "SELECT [sender_id], COUNT(*) as [count] FROM [messages] " +
+                     "WHERE [receiver_id] = ? AND [is_read] = 0 AND [is_deleted] = 0 " +
+                     "GROUP BY [sender_id]";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, userId);
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                counts.put(rs.getInt("sender_id"), rs.getInt("count"));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return counts;
+    }
+
     private Message mapMessage(ResultSet rs) throws SQLException {
         Message m = new Message();
         m.setId(rs.getInt("id"));
@@ -109,8 +169,12 @@ public class MessageDAO {
         m.setSenderName(rs.getString("sender_name"));
         try {
             m.setRead(rs.getBoolean("is_read"));
+            m.setEdited(rs.getBoolean("is_edited"));
+            m.setDeleted(rs.getBoolean("is_deleted"));
         } catch (Exception e) {
             m.setRead(false);
+            m.setEdited(false);
+            m.setDeleted(false);
         }
         return m;
     }

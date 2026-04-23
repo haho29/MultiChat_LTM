@@ -1,6 +1,7 @@
 package com.network.web;
 
 import com.network.core.MessageDAO;
+import com.network.core.UserDAO;
 import com.network.model.Message;
 import com.network.model.User;
 import java.io.IOException;
@@ -15,6 +16,7 @@ import jakarta.servlet.http.HttpSession;
 @WebServlet("/messages")
 public class MessageServlet extends HttpServlet {
     private final MessageDAO messageDAO = new MessageDAO();
+    private final UserDAO userDAO = new UserDAO();
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) 
@@ -23,6 +25,13 @@ public class MessageServlet extends HttpServlet {
         User currentUser = (User) session.getAttribute("user");
         if (currentUser == null) {
             response.setStatus(401);
+            return;
+        }
+
+        User dbUser = userDAO.getUserById(currentUser.getId());
+        if (dbUser != null && "BANNED".equals(dbUser.getStatus())) {
+            response.setStatus(403);
+            response.getWriter().write("[]");
             return;
         }
 
@@ -44,11 +53,11 @@ public class MessageServlet extends HttpServlet {
         StringBuilder sb = new StringBuilder("[");
         for (int i = 0; i < messages.size(); i++) {
             Message m = messages.get(i);
-            sb.append(String.format("{\"senderName\":\"%s\", \"content\":\"%s\", \"time\":\"%s\", \"isMe\":%b, \"isRead\":%b, \"type\":\"%s\"}", 
-                    m.getSenderName(), m.getContent().replace("\"", "\\\"").replace("\n", "\\n"), 
+            sb.append(String.format("{\"id\":%d, \"senderName\":\"%s\", \"content\":\"%s\", \"time\":\"%s\", \"isMe\":%b, \"isRead\":%b, \"isEdited\":%b, \"isDeleted\":%b, \"type\":\"%s\"}", 
+                    m.getId(), m.getSenderName(), m.getContent().replace("\"", "\\\"").replace("\n", "\\n"), 
                     m.getSentAt().toString().substring(11, 16),
                     m.getSenderId() == currentUser.getId(),
-                    m.isRead(),
+                    m.isRead(), m.isEdited(), m.isDeleted(),
                     m.getType()));
             if (i < messages.size() - 1) sb.append(",");
         }

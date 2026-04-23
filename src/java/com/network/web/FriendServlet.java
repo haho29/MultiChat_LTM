@@ -1,10 +1,12 @@
 package com.network.web;
 
 import com.network.core.FriendDAO;
+import com.network.core.MessageDAO;
 import com.network.core.UserDAO;
 import com.network.model.User;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -16,6 +18,7 @@ import jakarta.servlet.http.HttpSession;
 public class FriendServlet extends HttpServlet {
     private final FriendDAO friendDAO = new FriendDAO();
     private final UserDAO userDAO = new UserDAO();
+    private final MessageDAO messageDAO = new MessageDAO();
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) 
@@ -28,25 +31,45 @@ public class FriendServlet extends HttpServlet {
             return;
         }
 
+        User dbUser = userDAO.getUserById(currentUser.getId());
+        if (dbUser != null && "BANNED".equals(dbUser.getStatus())) {
+            response.setStatus(403);
+            response.getWriter().write("[]");
+            return;
+        }
+
         String type = request.getParameter("type");
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
 
         if ("list".equals(type)) {
             List<User> friends = friendDAO.getFriendsList(currentUser.getId());
-            // Loại bỏ chính mình một lần nữa để chắc chắn
             friends.removeIf(u -> u.getId() == currentUser.getId());
-            response.getWriter().write(toJson(friends));
+            
+            Map<Integer, Integer> unreadCounts = messageDAO.getUnreadCountsPerSender(currentUser.getId());
+            
+            StringBuilder sb = new StringBuilder("[");
+            for (int i = 0; i < friends.size(); i++) {
+                User u = friends.get(i);
+                int unreadCount = unreadCounts.getOrDefault(u.getId(), 0);
+                sb.append(String.format("{\"id\":%d, \"username\":\"%s\", \"fullName\":\"%s\", \"isOnline\":%b, \"unreadCount\":%d}", 
+                        u.getId(), u.getUsername(), u.getFullName(), u.isOnline(), unreadCount));
+                if (i < friends.size() - 1) sb.append(",");
+            }
+            sb.append("]");
+            response.getWriter().write(sb.toString());
         } else if ("pending".equals(type)) {
             List<User> pending = friendDAO.getPendingRequests(currentUser.getId());
             response.getWriter().write(toJson(pending));
+        } else if ("pendingCount".equals(type)) {
+            int count = friendDAO.getPendingRequestCount(currentUser.getId());
+            response.getWriter().write("{\"count\":" + count + "}");
         } else if ("sent".equals(type)) {
             List<User> sent = friendDAO.getSentRequests(currentUser.getId());
             response.getWriter().write(toJson(sent));
         } else if ("search".equals(type)) {
             String query = request.getParameter("query");
             User user = userDAO.searchUser(query);
-            // Không hiển thị chính mình khi tìm kiếm
             if (user != null && user.getId() != currentUser.getId()) {
                 response.getWriter().write("{\"id\":" + user.getId() + ",\"username\":\"" + user.getUsername() + "\",\"fullName\":\"" + user.getFullName() + "\"}");
             } else {
